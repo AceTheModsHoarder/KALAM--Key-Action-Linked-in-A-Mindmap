@@ -1,7 +1,8 @@
 {
   "dependencies": {
+    "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
     "@capacitor/core": "^8.2.0",
-    "reactflow": "^11.11.4"
+    "@xyflow/react": "^12.10.1"
   }
 }

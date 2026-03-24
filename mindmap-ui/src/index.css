@@ -5,6 +5,10 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  .react-flow__node:hover {
+  transform: scale(1.05);
+  border-color: #007bff;
+}
 }
 
 code {
