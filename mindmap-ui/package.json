@@ -1,6 +1,7 @@
 {
-  "name": "mindmap-ui",
+  "name": "kalam",
   "version": "0.1.0",
+  "description": "KALAM - Key Action Linked in A Mindmap. Interactive visual mindmap editor.",
   "private": true,
   "type": "module",
   "dependencies": {
