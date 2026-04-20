@@ -57,6 +57,17 @@ const bgPresets = [
   "#e8e8e0","#f0ece4","#faf7f2","#f5f0eb","#fffbf5",
 ];
 
+const edgeColorPresets = [
+  "#a78bfa", "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFD966",
+  "#96CEB4", "#DDA0DD", "#F7DC6F", "#BB8FCE", "#85C1E9",
+];
+
+const edgeStyleOptions = [
+  { value: "solid", label: "Solid", preview: "────" },
+  { value: "dashed", label: "Dashed", preview: "╌ ╌ ╌" },
+  { value: "dotted", label: "Dotted", preview: "· · · ·" },
+];
+
 // Font size options (like Microsoft Word)
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56, 64, 72];
 
@@ -109,8 +120,20 @@ const ShapeNode = memo(function ShapeNode({ id, data, selected }) {
   };
 
   const handleResize = useCallback((event, params) => {
-    data.onResize?.(id, params.width, params.height);
-  }, [id, data]);
+      data.onResize?.(id, params.width, params.height);
+    }, [id, data]);
+
+
+  const edgeColorPresets = [
+    "#a78bfa", "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFD966",
+    "#96CEB4", "#DDA0DD", "#F7DC6F", "#BB8FCE", "#85C1E9",
+  ];
+
+  const edgeStyleOptions = [
+    { value: "solid", label: "Solid", preview: "────" },
+    { value: "dashed", label: "Dashed", preview: "╌ ╌ ╌" },
+    { value: "dotted", label: "Dotted", preview: "· · · ·" },
+  ];
 
   return (
     <div
@@ -756,13 +779,177 @@ const FontSizeControl = ({ fontSize, onFontSizeChange }) => {
   );
 };
 
+const EdgeStylePanel = ({ 
+  edgeColor, setEdgeColor, edgeWidth, setEdgeWidth, 
+  edgeStyle, setEdgeStyle, edgeAnimated, setEdgeAnimated,
+  selectedEdgeId, applyEdgeStyle,setEdges
+}) => {
+  const handleEdgeColorChange = (color) => {
+    setEdgeColor(color);
+    if (selectedEdgeId) {
+      applyEdgeStyle({ stroke: color });
+    }
+  };
+
+  const handleEdgeWidthChange = (width) => {
+    setEdgeWidth(width);
+    if (selectedEdgeId) {
+      applyEdgeStyle({ strokeWidth: width });
+    }
+  };
+
+  const handleEdgeStyleChange = (style) => {
+    setEdgeStyle(style);
+    if (selectedEdgeId) {
+      const dash = style === "dashed" ? "8,4" : style === "dotted" ? "2,4" : "none";
+      applyEdgeStyle({ strokeDasharray: dash });
+    }
+  };
+
+  const handleAnimatedChange = (animated) => {
+    setEdgeAnimated(animated);
+    if (selectedEdgeId) {
+      setEdges((eds) =>
+        eds.map((e) =>
+          e.id === selectedEdgeId ? { ...e, animated } : e
+        )
+      );
+    }
+  };
+
+  return (
+    <div className="panel" style={{ top: "calc(100% + 8px)", right: 0, minWidth: 280 }}>
+      <div className="panel-title">
+        Edge Style {selectedEdgeId && <span style={{ color: '#4ECDC4' }}> (Selected)</span>}
+      </div>
+      
+      {/* Edge Color */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>
+          Color
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {edgeColorPresets.map(c => (
+            <div 
+              key={c} 
+              className="color-swatch" 
+              style={{
+                background: c,
+                boxShadow: c === edgeColor ? `0 0 0 2px #a78bfa, 0 0 10px rgba(167,139,250,0.4)` : undefined,
+              }} 
+              onClick={() => handleEdgeColorChange(c)} 
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Edge Width */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>
+          Thickness: {edgeWidth}px
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="8"
+          step="0.5"
+          value={edgeWidth}
+          onChange={(e) => handleEdgeWidthChange(parseFloat(e.target.value))}
+          style={{
+            width: '100%',
+            accentColor: '#a78bfa',
+            background: 'rgba(124,58,237,0.2)',
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+          <span style={{ fontSize: 10, color: '#c4b5fd' }}>Thin</span>
+          <span style={{ fontSize: 10, color: '#c4b5fd' }}>Thick</span>
+        </div>
+      </div>
+
+      {/* Edge Style (Solid/Dashed/Dotted) */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>
+          Line Style
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {edgeStyleOptions.map(option => (
+            <button
+              key={option.value}
+              onClick={() => handleEdgeStyleChange(option.value)}
+              style={{
+                flex: 1,
+                padding: '8px',
+                background: edgeStyle === option.value ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${edgeStyle === option.value ? '#a78bfa' : 'rgba(167,139,250,0.2)'}`,
+                borderRadius: 8,
+                color: edgeStyle === option.value ? '#fff' : '#c4b5fd',
+                cursor: 'pointer',
+                fontSize: 11,
+                fontWeight: 600,
+                transition: 'all 0.15s',
+              }}
+            >
+              <div style={{ fontSize: 16, marginBottom: 2 }}>{option.preview}</div>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Animated Toggle */}
+      <div style={{ marginBottom: 8 }}>
+        <label style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 8,
+          cursor: 'pointer',
+        }}>
+          <input
+            type="checkbox"
+            checked={edgeAnimated}
+            onChange={(e) => handleAnimatedChange(e.target.checked)}
+            style={{
+              accentColor: '#a78bfa',
+              width: 18,
+              height: 18,
+              cursor: 'pointer',
+            }}
+          />
+          <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>
+            Animated (flowing dash)
+          </span>
+        </label>
+      </div>
+
+      {!selectedEdgeId && (
+        <div style={{ 
+          marginTop: 12, 
+          padding: 8, 
+          background: 'rgba(124,58,237,0.1)',
+          borderRadius: 6,
+          fontSize: 11,
+          color: '#a78bfa',
+          textAlign: 'center',
+        }}>
+          Click an edge to edit existing connections
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Toolbar Component ────────────────────────────────────────────────────
 const Toolbar = ({
   selectedShape, showShapeDropdown, setShowShapeDropdown,
   showColorPanel, setShowColorPanel, showBgPanel, setShowBgPanel,
+  showEdgePanel, setShowEdgePanel,  // Add these
   nodeColor, textColor, bgColor, fontSize, addNode, applyShapeToNode,
   applyColorToNode, setBgColor, applyFontSize, autoArrange, resetView,
-  selectedNodeId
+  selectedNodeId,
+  edgeColor, edgeWidth, edgeStyle, edgeAnimated,  // Add these
+  setEdgeColor, setEdgeWidth, setEdgeStyle, setEdgeAnimated,  // Add these
+  selectedEdgeId, applyEdgeStyle, setEdges // Add these
 }) => (
   <>
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -888,6 +1075,44 @@ const Toolbar = ({
       </div>
     </div>
 
+        <div style={{ position: "relative" }}>
+      <button
+        className={`toolbar-btn ${showEdgePanel ? "active" : ""}`}
+        onClick={() => { 
+          setShowEdgePanel(p => !p); 
+          setShowColorPanel(false); 
+          setShowBgPanel(false); 
+          setShowShapeDropdown(false); 
+        }}
+        style={{ display: "flex", alignItems: "center", gap: 7 }}
+      >
+        <span style={{
+          display: "inline-block", 
+          width: 20, 
+          height: 3,
+          borderRadius: 2,
+          background: edgeColor,
+          border: "1px solid rgba(255,255,255,0.3)",
+        }} />
+        Edge
+      </button>
+      {showEdgePanel && (
+        <EdgeStylePanel
+          edgeColor={edgeColor}
+          setEdgeColor={setEdgeColor}
+          edgeWidth={edgeWidth}
+          setEdgeWidth={setEdgeWidth}
+          edgeStyle={edgeStyle}
+          setEdgeStyle={setEdgeStyle}
+          edgeAnimated={edgeAnimated}
+          setEdgeAnimated={setEdgeAnimated}
+          selectedEdgeId={selectedEdgeId}
+          applyEdgeStyle={applyEdgeStyle}
+          setEdges={setEdges}
+        />
+      )}
+    </div>
+
     <div className="desktop-toolbar" style={{ display: "flex", gap: 8 }}>
       <button className="toolbar-btn" onClick={autoArrange}>⊞ Arrange</button>
       <button
@@ -911,6 +1136,12 @@ export default function App() {
   const [textColor, setTextColor] = useState("#1a1a1a");
   const [fontSize, setFontSize] = useState(16);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [edgeColor, setEdgeColor] = useState("#a78bfa");
+  const [edgeWidth, setEdgeWidth] = useState(2);
+  const [edgeStyle, setEdgeStyle] = useState("solid"); // "solid", "dashed", "dotted"
+  const [edgeAnimated, setEdgeAnimated] = useState(false);
+  const [showEdgePanel, setShowEdgePanel] = useState(false);
+  const [selectedEdgeId, setSelectedEdgeId] = useState(null);
 
   const handleLabelChange = useCallback((id, newLabel) => {
     setNodes((nds) =>
@@ -934,9 +1165,26 @@ export default function App() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge({ ...params, type: "default", style: { stroke: "#a78bfa", strokeWidth: 2 }, animated: true }, eds)),
-    []
-  );
+  (params) => {
+    const getStrokeDasharray = () => {
+      if (edgeStyle === "dashed") return "8,4";
+      if (edgeStyle === "dotted") return "2,4";
+      return "none";
+    };
+    
+    setEdges((eds) => addEdge({ 
+      ...params, 
+      type: "default",
+      style: { 
+        stroke: edgeColor, 
+        strokeWidth: edgeWidth,
+        strokeDasharray: getStrokeDasharray(),
+      },
+      animated: edgeAnimated,
+    }, eds));
+  },
+  [edgeColor, edgeWidth, edgeStyle, edgeAnimated]
+);
 
   const addNode = () => {
     const id = Date.now().toString();
@@ -973,14 +1221,45 @@ export default function App() {
     );
   };
 
+  const onEdgeClick = (_, edge) => {
+  setSelectedEdgeId(edge.id);
+  setEdgeColor(edge.style?.stroke || "#a78bfa");
+  setEdgeWidth(edge.style?.strokeWidth || 2);
+  
+  const dash = edge.style?.strokeDasharray;
+  if (dash === "8,4") setEdgeStyle("dashed");
+  else if (dash === "2,4") setEdgeStyle("dotted");
+  else setEdgeStyle("solid");
+  
+  setEdgeAnimated(edge.animated || false);
+  
+  // Highlight selected edge
+  setEdges((eds) =>
+    eds.map((e) => ({
+      ...e,
+      style: { 
+        ...e.style, 
+        opacity: e.id === edge.id ? 1 : 0.3,
+        strokeWidth: e.id === edge.id ? edgeWidth + 1 : e.style?.strokeWidth || 2,
+      },
+    }))
+  );
+};
+
   const onPaneClick = () => {
-    setSelectedNodeId(null);
-    setNodes((nds) => nds.map((n) => ({ ...n, style: { ...n.style, opacity: 1 } })));
-    setShowColorPanel(false);
-    setShowBgPanel(false);
-    setShowShapeDropdown(false);
-    setShowMobileMenu(false);
-  };
+  setSelectedNodeId(null);
+  setSelectedEdgeId(null);
+  setNodes((nds) => nds.map((n) => ({ ...n, style: { ...n.style, opacity: 1 } })));
+  setEdges((eds) => eds.map((e) => ({ 
+    ...e, 
+    style: { ...e.style, opacity: 1, strokeWidth: e.style?.strokeWidth || 2 }
+  })));
+  setShowColorPanel(false);
+  setShowBgPanel(false);
+  setShowShapeDropdown(false);
+  setShowEdgePanel(false);
+  setShowMobileMenu(false);
+};
 
   const applyColorToNode = (color, field) => {
     if (!selectedNodeId) return;
@@ -1017,6 +1296,22 @@ export default function App() {
       )
     );
   };
+
+  const applyEdgeStyle = (updates) => {
+  if (!selectedEdgeId) return;
+  
+  setEdges((eds) =>
+    eds.map((e) =>
+      e.id === selectedEdgeId
+        ? {
+            ...e,
+            style: { ...e.style, ...updates },
+            animated: updates.animated !== undefined ? updates.animated : e.animated,
+          }
+        : e
+    )
+  );
+};
 
   const resetView = () => {
     setNodes(makeInitialNodes(handleLabelChange, handleResize));
@@ -1070,6 +1365,8 @@ export default function App() {
           setShowColorPanel={setShowColorPanel}
           showBgPanel={showBgPanel}
           setShowBgPanel={setShowBgPanel}
+          showEdgePanel={showEdgePanel}
+          setShowEdgePanel={setShowEdgePanel}
           nodeColor={nodeColor}
           textColor={textColor}
           bgColor={bgColor}
@@ -1082,6 +1379,17 @@ export default function App() {
           autoArrange={autoArrange}
           resetView={resetView}
           selectedNodeId={selectedNodeId}
+          edgeColor={edgeColor}
+          edgeWidth={edgeWidth}
+          edgeStyle={edgeStyle}
+          edgeAnimated={edgeAnimated}
+          setEdgeColor={setEdgeColor}
+          setEdgeWidth={setEdgeWidth}
+          setEdgeStyle={setEdgeStyle}
+          setEdgeAnimated={setEdgeAnimated}
+          selectedEdgeId={selectedEdgeId}
+          applyEdgeStyle={applyEdgeStyle}
+          setEdges={setEdges}
         />
 
         <button className="mobile-menu-toggle" onClick={() => setShowMobileMenu(!showMobileMenu)}>☰</button>
@@ -1121,14 +1429,19 @@ export default function App() {
           onConnect={onConnect}
           onPaneClick={onPaneClick}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           nodeTypes={nodeTypes}
           fitView
           connectionMode={ConnectionMode.Loose}
           connectionRadius={40}
           defaultEdgeOptions={{
             type: "default",
-            style: { stroke: "#a78bfa", strokeWidth: 2 },
-            animated: true,
+            style: { 
+              stroke: edgeColor, 
+              strokeWidth: edgeWidth,
+              strokeDasharray: edgeStyle === "dashed" ? "8,4" : edgeStyle === "dotted" ? "2,4" : "none",
+            },
+            animated: edgeAnimated,
           }}
         >
           <Background color={bgColor > "#cccccc" ? "rgba(0,0,0,0.12)" : "rgba(167,139,250,0.12)"} gap={28} size={1.5} />
@@ -1141,6 +1454,7 @@ export default function App() {
         <div>✏️ Double-click node → edit label</div>
         <div>⚡ Drag from center → connect nodes</div>
         <div>🎯 Click node → select & style</div>
+        <div>🔗 Click edge → select & style</div>
         <div>📏 Drag node corners → resize</div>
         <div>🔤 Use toolbar to change font size</div>
       </div>
