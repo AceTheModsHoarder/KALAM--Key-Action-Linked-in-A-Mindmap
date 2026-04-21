@@ -655,6 +655,35 @@ const GlobalStyles = () => (
       flex: 1;
       min-width: 100px;
     }
+
+    .panel {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+    }
+    
+    @media (max-width: 768px) {
+      .mobile-drawer {
+        max-height: calc(100vh - 74px);
+      }
+      .mobile-drawer-section {
+        padding: 12px;
+      }
+      .color-swatch {
+        width: 24px;
+        height: 24px;
+      }
+      .font-size-preset-btn {
+        padding: 4px 2px;
+        font-size: 11px;
+      }
+    }
   `}</style>
 );
 
@@ -1075,7 +1104,7 @@ const Toolbar = ({
       </div>
     </div>
 
-        <div style={{ position: "relative" }}>
+        <div className="desktop-toolbar" style={{ position: "relative" }}>
       <button
         className={`toolbar-btn ${showEdgePanel ? "active" : ""}`}
         onClick={() => { 
@@ -1097,21 +1126,23 @@ const Toolbar = ({
         Edge
       </button>
       {showEdgePanel && (
-        <EdgeStylePanel
-          edgeColor={edgeColor}
-          setEdgeColor={setEdgeColor}
-          edgeWidth={edgeWidth}
-          setEdgeWidth={setEdgeWidth}
-          edgeStyle={edgeStyle}
-          setEdgeStyle={setEdgeStyle}
-          edgeAnimated={edgeAnimated}
-          setEdgeAnimated={setEdgeAnimated}
-          selectedEdgeId={selectedEdgeId}
-          applyEdgeStyle={applyEdgeStyle}
-          setEdges={setEdges}
-        />
+      <EdgeStylePanel
+        edgeColor={edgeColor}
+        setEdgeColor={setEdgeColor}
+        edgeWidth={edgeWidth}
+        setEdgeWidth={setEdgeWidth}
+        edgeStyle={edgeStyle}
+        setEdgeStyle={setEdgeStyle}
+        edgeAnimated={edgeAnimated}
+        setEdgeAnimated={setEdgeAnimated}
+        selectedEdgeId={selectedEdgeId}
+        applyEdgeStyle={applyEdgeStyle}
+        setEdges={setEdges}
+      />
       )}
-    </div>
+      </div>
+  
+
 
     <div className="desktop-toolbar" style={{ display: "flex", gap: 8 }}>
       <button className="toolbar-btn" onClick={autoArrange}>⊞ Arrange</button>
@@ -1411,6 +1442,161 @@ export default function App() {
               </div>
             ))}
           </div>
+          
+          <div className="mobile-drawer-section">
+            <div className="mobile-drawer-title">Node Colors</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 6, fontWeight: 600 }}>Fill</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {colorPresets.map(c => (
+                  <div key={c} className="color-swatch" style={{
+                    background: c,
+                    boxShadow: c === nodeColor ? `0 0 0 2px #a78bfa, 0 0 10px rgba(167,139,250,0.4)` : undefined,
+                  }} onClick={() => applyColorToNode(c, "node")} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 6, fontWeight: 600 }}>Text</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {["#1a1a1a","#ffffff","#7c3aed","#FFD966","#4ECDC4","#FF6B6B"].map(c => (
+                  <div key={c} className="color-swatch" style={{
+                    background: c,
+                    border: c === textColor ? "2px solid #a78bfa" : "2px solid rgba(255,255,255,0.1)",
+                  }} onClick={() => applyColorToNode(c, "text")} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mobile-drawer-section">
+            <div className="mobile-drawer-title">Font Size</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <button className="font-size-btn" onClick={() => { const currentIndex = FONT_SIZES.indexOf(fontSize); if (currentIndex > 0) applyFontSize(FONT_SIZES[currentIndex - 1]); }} title="Decrease font size">
+                A<span style={{ fontSize: 10 }}>▼</span>
+              </button>
+              <div style={{ flex: 1, padding: '6px 8px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+                {fontSize}px
+              </div>
+              <button className="font-size-btn" onClick={() => { const currentIndex = FONT_SIZES.indexOf(fontSize); if (currentIndex < FONT_SIZES.length - 1) applyFontSize(FONT_SIZES[currentIndex + 1]); }} title="Increase font size">
+                A<span style={{ fontSize: 10 }}>▲</span>
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+              {[12, 14, 16, 18, 20, 24, 28, 32, 36, 48].map(size => (
+                <button
+                  key={size}
+                  className="font-size-preset-btn"
+                  onClick={() => applyFontSize(size)}
+                  style={{
+                    background: fontSize === size ? 'rgba(124,58,237,0.5)' : undefined,
+                    borderColor: fontSize === size ? '#675e80' : undefined,
+                  }}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mobile-drawer-section">
+            <div className="mobile-drawer-title">Edge Style</div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>Color</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {edgeColorPresets.map(c => (
+                  <div 
+                    key={c} 
+                    className="color-swatch" 
+                    style={{
+                      background: c,
+                      boxShadow: c === edgeColor ? `0 0 0 2px #a78bfa, 0 0 10px rgba(167,139,250,0.4)` : undefined,
+                    }} 
+                    onClick={() => { setEdgeColor(c); if (selectedEdgeId) applyEdgeStyle({ stroke: c }); }} 
+                  />
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>
+                Thickness: {edgeWidth}px
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="8"
+                step="0.5"
+                value={edgeWidth}
+                onChange={(e) => { const width = parseFloat(e.target.value); setEdgeWidth(width); if (selectedEdgeId) applyEdgeStyle({ strokeWidth: width }); }}
+                style={{
+                  width: '100%',
+                  accentColor: '#a78bfa',
+                  background: 'rgba(124,58,237,0.2)',
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>Line Style</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {edgeStyleOptions.map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => { setEdgeStyle(option.value); if (selectedEdgeId) { const dash = option.value === "dashed" ? "8,4" : option.value === "dotted" ? "2,4" : "none"; applyEdgeStyle({ strokeDasharray: dash }); } }}
+                    style={{
+                      flex: 1,
+                      minWidth: 60,
+                      padding: '8px',
+                      background: edgeStyle === option.value ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${edgeStyle === option.value ? '#a78bfa' : 'rgba(167,139,250,0.2)'}`,
+                      borderRadius: 8,
+                      color: edgeStyle === option.value ? '#fff' : '#c4b5fd',
+                      cursor: 'pointer',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8,
+                cursor: 'pointer',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={edgeAnimated}
+                  onChange={(e) => { setEdgeAnimated(e.target.checked); if (selectedEdgeId) { setEdges((eds) => eds.map((edge) => edge.id === selectedEdgeId ? { ...edge, animated: e.target.checked } : edge)); } }}
+                  style={{
+                    accentColor: '#a78bfa',
+                    width: 18,
+                    height: 18,
+                    cursor: 'pointer',
+                  }}
+                />
+                <span style={{ color: '#fff', fontSize: 11, fontWeight: 600 }}>Animated</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="mobile-drawer-section">
+            <div className="mobile-drawer-title">Canvas</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {bgPresets.map(c => (
+                <div key={c} className="color-swatch" style={{
+                  background: c,
+                  border: c === bgColor ? "2px solid #a78bfa" : "2px solid rgba(255,255,255,0.1)",
+                  boxShadow: c === bgColor ? "0 0 10px rgba(167,139,250,0.4)" : undefined,
+                }} onClick={() => setBgColor(c)} />
+              ))}
+            </div>
+          </div>
+
           <div className="mobile-drawer-section">
             <div className="mobile-drawer-title">Actions</div>
             <button className="toolbar-btn" onClick={() => { autoArrange(); setShowMobileMenu(false); }}>⊞ Arrange</button>
