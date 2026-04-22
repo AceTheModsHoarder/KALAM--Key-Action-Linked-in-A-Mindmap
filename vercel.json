@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "mindmap-ui/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/mindmap-ui/$1"
+    }
+  ]
+}
