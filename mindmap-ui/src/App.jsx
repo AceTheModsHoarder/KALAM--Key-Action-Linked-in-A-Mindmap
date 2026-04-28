@@ -52,9 +52,9 @@ const colorPresets = [
 ];
 
 const bgPresets = [
-  "#0f0f1a","#1a1a2e","#0d1117","#111827","#0c0c0c",
-  "#1e1b4b","#0f172a","#18181b","#1c1917","#162032",
-  "#e8e8e0","#f0ece4","#faf7f2","#f5f0eb","#fffbf5",
+  "#060606","#7f0639","#1b4a90","#0e9460","#6d1792",
+  "#1e1b4b","#8a9517","#8a6812","#1393ce","#139f88",
+  "#ffffff","#769e13","#ad9d0c","#9c0808","#200d8b",
 ];
 
 const edgeColorPresets = [
@@ -70,6 +70,77 @@ const edgeStyleOptions = [
 
 // Font size options (like Microsoft Word)
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 56, 64, 72];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADD 1: History & Save/Load Utilities
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MAX_HISTORY = 50;
+const SAVE_KEY = 'kalam-mindmap-save';
+
+const useHistory = (initialPresent) => {
+  const [past, setPast] = useState([]);
+  const [present, setPresent] = useState(initialPresent);
+  const [future, setFuture] = useState([]);
+
+  const pushState = useCallback((newPresent) => {
+    setPast((prev) => {
+      const newPast = [...prev, present];
+      return newPast.length > MAX_HISTORY ? newPast.slice(1) : newPast;
+    });
+    setPresent(newPresent);
+    setFuture([]);
+  }, [present]);
+
+  const undo = useCallback(() => {
+    if (past.length === 0) return null;
+    const previous = past[past.length - 1];
+    setPast((prev) => prev.slice(0, -1));
+    setFuture((prev) => [present, ...prev]);
+    setPresent(previous);
+    return previous;
+  }, [past, present]);
+
+  const redo = useCallback(() => {
+    if (future.length === 0) return null;
+    const next = future[0];
+    setFuture((prev) => prev.slice(1));
+    setPast((prev) => [...prev, present]);
+    setPresent(next);
+    return next;
+  }, [future, present]);
+
+  const clearHistory = useCallback(() => {
+    setPast([]);
+    setFuture([]);
+  }, []);
+
+  return { present, pushState, undo, redo, canUndo: past.length > 0, canRedo: future.length > 0, clearHistory };
+};
+
+const saveToStorage = (data) => {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    return true;
+  } catch (e) {
+    console.error('Failed to save:', e);
+    return false;
+  }
+};
+
+const loadFromStorage = () => {
+  try {
+    const data = localStorage.getItem(SAVE_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch (e) {
+    console.error('Failed to load:', e);
+    return null;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// END ADD 1
+// ═══════════════════════════════════════════════════════════════════════════
 
 // ─── Custom Node Component ─────────────────────────────────────────────────────
 const HANDLE_SIZE = 18;
@@ -326,6 +397,13 @@ const GlobalStyles = () => (
       border-color: #a78bfa;
       color: #fff;
       box-shadow: 0 0 12px rgba(124,58,237,0.4);
+    }
+    
+    .toolbar-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
     
     .shape-option {
@@ -820,410 +898,6 @@ const FontSizeControl = ({ fontSize, onFontSizeChange }) => {
   );
 };
 
-const EdgeStylePanel = ({ 
-  edgeColor, setEdgeColor, edgeWidth, setEdgeWidth, 
-  edgeStyle, setEdgeStyle, edgeAnimated, setEdgeAnimated,
-  selectedEdgeId, applyEdgeStyle,setEdges
-}) => {
-  const handleEdgeColorChange = (color) => {
-    setEdgeColor(color);
-    if (selectedEdgeId) {
-      applyEdgeStyle({ stroke: color });
-    }
-  };
-
-  const handleEdgeWidthChange = (width) => {
-    setEdgeWidth(width);
-    if (selectedEdgeId) {
-      applyEdgeStyle({ strokeWidth: width });
-    }
-  };
-
-  const handleEdgeStyleChange = (style) => {
-    setEdgeStyle(style);
-    if (selectedEdgeId) {
-      const dash = style === "dashed" ? "8,4" : style === "dotted" ? "2,4" : "none";
-      applyEdgeStyle({ strokeDasharray: dash });
-    }
-  };
-
-  const handleAnimatedChange = (animated) => {
-    setEdgeAnimated(animated);
-    if (selectedEdgeId) {
-      setEdges((eds) =>
-        eds.map((e) =>
-          e.id === selectedEdgeId ? { ...e, animated } : e
-        )
-      );
-    }
-  };
-
-  return (
-    <div className="panel" style={{ top: "calc(100% + 8px)", right: 0, minWidth: 280 }}>
-      <div className="panel-title">
-        Edge Style {selectedEdgeId && <span style={{ color: '#4ECDC4' }}> (Selected)</span>}
-      </div>
-      
-      {/* Edge Color */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>
-          Color
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {edgeColorPresets.map(c => (
-            <div 
-              key={c} 
-              className="color-swatch" 
-              style={{
-                background: c,
-                boxShadow: c === edgeColor ? `0 0 0 2px #a78bfa, 0 0 10px rgba(167,139,250,0.4)` : undefined,
-              }} 
-              onClick={() => handleEdgeColorChange(c)} 
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Edge Width */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>
-          Thickness: {edgeWidth}px
-        </div>
-        <input
-          type="range"
-          min="1"
-          max="8"
-          step="0.5"
-          value={edgeWidth}
-          onChange={(e) => handleEdgeWidthChange(parseFloat(e.target.value))}
-          style={{
-            width: '100%',
-            accentColor: '#a78bfa',
-            background: 'rgba(124,58,237,0.2)',
-          }}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-          <span style={{ fontSize: 10, color: '#c4b5fd' }}>Thin</span>
-          <span style={{ fontSize: 10, color: '#c4b5fd' }}>Thick</span>
-        </div>
-      </div>
-
-      {/* Edge Style (Solid/Dashed/Dotted) */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ color: '#a78bfa', fontSize: 11, marginBottom: 8, fontWeight: 600 }}>
-          Line Style
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {edgeStyleOptions.map(option => (
-            <button
-              key={option.value}
-              onClick={() => handleEdgeStyleChange(option.value)}
-              style={{
-                flex: 1,
-                padding: '8px',
-                background: edgeStyle === option.value ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${edgeStyle === option.value ? '#a78bfa' : 'rgba(167,139,250,0.2)'}`,
-                borderRadius: 8,
-                color: edgeStyle === option.value ? '#fff' : '#c4b5fd',
-                cursor: 'pointer',
-                fontSize: 11,
-                fontWeight: 600,
-                transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ fontSize: 16, marginBottom: 2 }}>{option.preview}</div>
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Animated Toggle */}
-      <div style={{ marginBottom: 8 }}>
-        <label style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 8,
-          cursor: 'pointer',
-        }}>
-          <input
-            type="checkbox"
-            checked={edgeAnimated}
-            onChange={(e) => handleAnimatedChange(e.target.checked)}
-            style={{
-              accentColor: '#a78bfa',
-              width: 18,
-              height: 18,
-              cursor: 'pointer',
-            }}
-          />
-          <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>
-            Animated (flowing dash)
-          </span>
-        </label>
-      </div>
-
-      {!selectedEdgeId && (
-        <div style={{ 
-          marginTop: 12, 
-          padding: 8, 
-          background: 'rgba(124,58,237,0.1)',
-          borderRadius: 6,
-          fontSize: 11,
-          color: '#a78bfa',
-          textAlign: 'center',
-        }}>
-          Click an edge to edit existing connections
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── Toolbar Component ────────────────────────────────────────────────────
-const Toolbar = ({
-  selectedShape, showShapeDropdown, setShowShapeDropdown,
-  showColorPanel, setShowColorPanel, showBgPanel, setShowBgPanel,
-  nodeColor, textColor, bgColor, fontSize, addNode, applyShapeToNode,
-  applyColorToNode, setBgColor, applyFontSize, autoArrange, resetView,
-}) => {
-  
-  // Simple overlay click handler
-  const closeAllPanels = () => {
-    setShowShapeDropdown(false);
-    setShowColorPanel(false);
-    setShowBgPanel(false);
-  };
-
-  return (
-    <>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{
-          width: 32, height: 32,
-          background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-          borderRadius: 8,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, boxShadow: "0 0 16px rgba(124,58,237,0.5)",
-        }}>⬡</div>
-        <span style={{
-          fontFamily: "'Syne', sans-serif",
-          fontWeight: 800, fontSize: 18,
-          background: "linear-gradient(135deg, #a78bfa, #818cf8)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          letterSpacing: "-0.02em",
-        }}>KALAM</span>
-      </div>
-
-      <div className="desktop-toolbar" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button onClick={addNode} className="toolbar-btn">+ Add {selectedShape}</button>
-        
-        <button
-          className={`toolbar-btn ${showShapeDropdown ? "active" : ""}`}
-          onClick={() => { 
-            setShowShapeDropdown(!showShapeDropdown); 
-            setShowColorPanel(false); 
-            setShowBgPanel(false); 
-          }}
-        >
-          <span style={{ marginRight: 6 }}>{shapeIcons[selectedShape]}</span>
-          {selectedShape.charAt(0).toUpperCase() + selectedShape.slice(1)}
-          <span style={{ marginLeft: 6, opacity: 0.6 }}>▾</span>
-        </button>
-
-        <FontSizeControl fontSize={fontSize} onFontSizeChange={applyFontSize} />
-
-        <button
-          className={`toolbar-btn ${showColorPanel ? "active" : ""}`}
-          onClick={() => { 
-            setShowColorPanel(!showColorPanel); 
-            setShowBgPanel(false); 
-            setShowShapeDropdown(false); 
-          }}
-          style={{ display: "flex", alignItems: "center", gap: 7 }}
-        >
-          <span style={{
-            display: "inline-block", width: 14, height: 14,
-            borderRadius: "50%", background: nodeColor,
-            border: "1.5px solid rgba(255,255,255,0.3)",
-          }} />
-          Colors
-        </button>
-
-        <button
-          className={`toolbar-btn ${showBgPanel ? "active" : ""}`}
-          onClick={() => { 
-            setShowBgPanel(!showBgPanel); 
-            setShowColorPanel(false); 
-            setShowShapeDropdown(false); 
-          }}
-          style={{ display: "flex", alignItems: "center", gap: 7 }}
-        >
-          <span style={{
-            display: "inline-block", width: 14, height: 14,
-            borderRadius: 3, background: bgColor,
-            border: "1.5px solid rgba(255,255,255,0.3)",
-          }} />
-          Canvas
-        </button>
-      </div>
-
-      <div className="desktop-toolbar" style={{ display: "flex", gap: 8 }}>
-        <button className="toolbar-btn" onClick={autoArrange}>⊞ Arrange</button>
-        <button
-          className="toolbar-btn"
-          onClick={resetView}
-          style={{ borderColor: "rgba(239,68,68,0.3)", color: "#f87171" }}
-        >↺ Reset</button>
-      </div>
-
-      {/* OVERLAY - shows when any panel is open */}
-      {(showShapeDropdown || showColorPanel || showBgPanel) && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            zIndex: 998,
-          }}
-          onClick={closeAllPanels}
-        />
-      )}
-
-      {/* SHAPE PANEL */}
-      {showShapeDropdown && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: "rgba(15,10,30,0.97)",
-          border: "1px solid rgba(167,139,250,0.25)",
-          borderRadius: 16,
-          padding: 16,
-          zIndex: 999,
-          maxWidth: '300px',
-          width: 'calc(100vw - 32px)',
-          maxHeight: '400px',
-          overflowY: 'auto',
-          boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-        }}>
-          <div className="panel-title">Select Shape</div>
-          {SHAPES.map(s => (
-            <div
-              key={s}
-              className="shape-option"
-              style={{ background: s === selectedShape ? "rgba(124,58,237,0.25)" : undefined }}
-              onClick={() => { applyShapeToNode(s); closeAllPanels(); }}
-            >
-              <span style={{ fontSize: 16, width: 22, textAlign: "center" }}>{shapeIcons[s]}</span>
-              <span>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* COLORS PANEL */}
-{showColorPanel && (
-  <>
-    <div
-      style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        zIndex: 998,
-      }}
-      onClick={closeAllPanels}
-    />
-    <div style={{
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      background: "rgba(15,10,30,0.97)",
-      border: "1px solid rgba(167,139,250,0.25)",
-      borderRadius: 16,
-      padding: 16,
-      zIndex: 999,
-      width: '280px',
-      maxHeight: '80vh',
-      overflowY: 'auto',
-      boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-    }}>
-      <div className="panel-title">Node Fill Color</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-        {colorPresets.map(c => (
-          <div key={c} className="color-swatch" style={{
-            background: c,
-            boxShadow: c === nodeColor ? `0 0 0 2px #a78bfa` : undefined,
-          }} onClick={() => applyColorToNode(c, "node")} />
-        ))}
-      </div>
-      <div className="panel-title">Text Color</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {["#1a1a1a","#ffffff","#7c3aed","#FFD966","#4ECDC4","#FF6B6B"].map(c => (
-          <div key={c} className="color-swatch" style={{
-            background: c,
-            border: c === textColor ? "2px solid #a78bfa" : "2px solid rgba(255,255,255,0.1)",
-          }} onClick={() => applyColorToNode(c, "text")} />
-        ))}
-      </div>
-      
-      {/* Close button */}
-      <button
-        onClick={closeAllPanels}
-        style={{
-          marginTop: 16,
-          width: '100%',
-          padding: '8px',
-          background: 'rgba(124,58,237,0.3)',
-          border: '1px solid rgba(167,139,250,0.3)',
-          borderRadius: 8,
-          color: '#fff',
-          fontSize: 12,
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        Close
-      </button>
-    </div>
-  </>
-)}
-
-      {/* CANVAS PANEL */}
-      {showBgPanel && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: "rgba(15,10,30,0.97)",
-          border: "1px solid rgba(167,139,250,0.25)",
-          borderRadius: 16,
-          padding: 16,
-          zIndex: 999,
-          maxWidth: '300px',
-          width: 'calc(100vw - 32px)',
-          maxHeight: '400px',
-          overflowY: 'auto',
-          boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-        }}>
-          <div className="panel-title">Canvas Background</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {bgPresets.map(c => (
-              <div key={c} className="color-swatch" style={{
-                background: c,
-                border: c === bgColor ? "2px solid #a78bfa" : "2px solid rgba(255,255,255,0.1)",
-              }} onClick={() => setBgColor(c)} />
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
 // ─── Main App ─────────────────────────────────────────────────────────────
 export default function App() {
   const [bgColor, setBgColor] = useState("#0f0f1a");
@@ -1238,7 +912,7 @@ export default function App() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [edgeColor, setEdgeColor] = useState("#a78bfa");
   const [edgeWidth, setEdgeWidth] = useState(2);
-  const [edgeStyle, setEdgeStyle] = useState("solid"); // "solid", "dashed", "dotted"
+  const [edgeStyle, setEdgeStyle] = useState("solid");
   const [edgeAnimated, setEdgeAnimated] = useState(false);
   const [showEdgePanel, setShowEdgePanel] = useState(false);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
@@ -1259,11 +933,57 @@ export default function App() {
     );
   }, []);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(
-    makeInitialNodes(handleLabelChange, handleResize)
-  );
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADD 2: Initialize history with initial state
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const initialNodes = makeInitialNodes(handleLabelChange, handleResize);
+  const { 
+    present: historyState, 
+    pushState, 
+    undo, 
+    redo, 
+    canUndo, 
+    canRedo,
+    clearHistory 
+  } = useHistory({ nodes: initialNodes, edges: [] });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END ADD 2
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    historyState?.nodes || initialNodes
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    historyState?.edges || []
+  );
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADD 3: History push helper
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const pushHistoryState = useCallback(() => {
+    // Use setTimeout to ensure state is updated before pushing
+    setTimeout(() => {
+      setNodes((currentNodes) => {
+        setEdges((currentEdges) => {
+          pushState({ nodes: currentNodes, edges: currentEdges });
+          return currentEdges;
+        });
+        return currentNodes;
+      });
+    }, 0);
+  }, [pushState]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END ADD 3
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODIFY 1: Update onConnect to push history
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   const onConnect = useCallback(
   (params) => {
     const getStrokeDasharray = () => {
@@ -1282,10 +1002,21 @@ export default function App() {
       },
       animated: edgeAnimated,
     }, eds));
+    
+    // ADD THIS LINE:
+    pushHistoryState();
   },
-  [edgeColor, edgeWidth, edgeStyle, edgeAnimated]
+  [edgeColor, edgeWidth, edgeStyle, edgeAnimated, pushHistoryState]
 );
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END MODIFY 1
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODIFY 2: Update addNode to push history
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   const addNode = () => {
     const id = Date.now().toString();
     const newNode = {
@@ -1305,7 +1036,13 @@ export default function App() {
       },
     };
     setNodes((nds) => nds.concat(newNode));
+    // ADD THIS LINE:
+    pushHistoryState();
   };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END MODIFY 2
+  // ═══════════════════════════════════════════════════════════════════════════
 
   const onNodeClick = (_, node) => {
     setSelectedNodeId(node.id);
@@ -1333,7 +1070,6 @@ export default function App() {
   
   setEdgeAnimated(edge.animated || false);
   
-  // Highlight selected edge
   setEdges((eds) =>
     eds.map((e) => ({
       ...e,
@@ -1361,6 +1097,10 @@ export default function App() {
   setShowMobileMenu(false);
 };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODIFY 3: Update applyColorToNode to push history
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   const applyColorToNode = (color, field) => {
     if (!selectedNodeId) return;
     if (field === "node") setNodeColor(color);
@@ -1372,8 +1112,18 @@ export default function App() {
           : n
       )
     );
+    // ADD THIS LINE:
+    pushHistoryState();
   };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END MODIFY 3
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODIFY 4: Update applyFontSize to push history
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   const applyFontSize = (size) => {
     setFontSize(size);
     if (!selectedNodeId) return;
@@ -1384,8 +1134,18 @@ export default function App() {
           : n
       )
     );
+    // ADD THIS LINE:
+    pushHistoryState();
   };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END MODIFY 4
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODIFY 5: Update applyShapeToNode to push history
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   const applyShapeToNode = (shape) => {
     setSelectedShape(shape);
     setShowShapeDropdown(false);
@@ -1395,8 +1155,18 @@ export default function App() {
         n.id === selectedNodeId ? { ...n, data: { ...n.data, shape } } : n
       )
     );
+    // ADD THIS LINE:
+    pushHistoryState();
   };
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END MODIFY 5
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODIFY 6: Update applyEdgeStyle to push history
+  // ═══════════════════════════════════════════════════════════════════════════
+  
   const applyEdgeStyle = (updates) => {
   if (!selectedEdgeId) return;
   
@@ -1411,7 +1181,13 @@ export default function App() {
         : e
     )
   );
+  // ADD THIS LINE:
+  pushHistoryState();
 };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END MODIFY 6
+  // ═══════════════════════════════════════════════════════════════════════════
 
   const resetView = () => {
     setNodes(makeInitialNodes(handleLabelChange, handleResize));
@@ -1422,6 +1198,8 @@ export default function App() {
     setNodeColor("#FFD966");
     setTextColor("#1a1a1a");
     setSelectedShape("hexagon");
+    // ADD THIS LINE:
+    pushHistoryState();
   };
 
   const autoArrange = () => {
@@ -1437,7 +1215,162 @@ export default function App() {
         };
       })
     );
+    // ADD THIS LINE:
+    pushHistoryState();
   };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADD 4: Save & Load functions
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const handleSave = useCallback(() => {
+    const state = {
+      nodes: nodes.map(n => ({
+        id: n.id,
+        type: n.type,
+        position: n.position,
+        data: {
+          label: n.data.label,
+          shape: n.data.shape,
+          color: n.data.color,
+          textColor: n.data.textColor,
+          fontSize: n.data.fontSize,
+          width: n.data.width,
+          height: n.data.height,
+        },
+      })),
+      edges: edges.map(e => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        style: e.style,
+        animated: e.animated,
+      })),
+      bgColor,
+      edgeColor,
+      edgeWidth,
+      edgeStyle,
+      edgeAnimated,
+    };
+    
+    if (saveToStorage(state)) {
+      alert('✅ Mind map saved successfully!');
+    }
+  }, [nodes, edges, bgColor, edgeColor, edgeWidth, edgeStyle, edgeAnimated]);
+
+  const handleLoad = useCallback(() => {
+    const saved = loadFromStorage();
+    if (!saved) {
+      alert('No saved mind map found');
+      return;
+    }
+    
+    const loadedNodes = saved.nodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        onLabelChange: handleLabelChange,
+        onResize: handleResize,
+      },
+    }));
+    
+    setNodes(loadedNodes);
+    setEdges(saved.edges || []);
+    setBgColor(saved.bgColor || "#0f0f1a");
+    if (saved.edgeColor) setEdgeColor(saved.edgeColor);
+    if (saved.edgeWidth) setEdgeWidth(saved.edgeWidth);
+    if (saved.edgeStyle) setEdgeStyle(saved.edgeStyle);
+    setEdgeAnimated(saved.edgeAnimated || false);
+    
+    clearHistory();
+    pushState({ nodes: loadedNodes, edges: saved.edges || [] });
+  }, [handleLabelChange, handleResize, setNodes, setEdges, clearHistory, pushState]);
+
+  // Auto-save on page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const state = {
+        nodes: nodes.map(n => ({
+          id: n.id,
+          type: n.type,
+          position: n.position,
+          data: {
+            label: n.data.label,
+            shape: n.data.shape,
+            color: n.data.color,
+            textColor: n.data.textColor,
+            fontSize: n.data.fontSize,
+            width: n.data.width,
+            height: n.data.height,
+          },
+        })),
+        edges: edges.map(e => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          style: e.style,
+          animated: e.animated,
+        })),
+        bgColor,
+        edgeColor,
+        edgeWidth,
+        edgeStyle,
+        edgeAnimated,
+      };
+      saveToStorage(state);
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [nodes, edges, bgColor, edgeColor, edgeWidth, edgeStyle, edgeAnimated]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END ADD 4
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADD 5: Keyboard shortcuts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger shortcuts when typing in inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      // Undo: Ctrl+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        const prevState = undo();
+        if (prevState) {
+          setNodes(prevState.nodes);
+          setEdges(prevState.edges);
+        }
+      }
+      
+      // Redo: Ctrl+Shift+Z or Ctrl+Y
+      if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
+        e.preventDefault();
+        const nextState = redo();
+        if (nextState) {
+          setNodes(nextState.nodes);
+          setEdges(nextState.edges);
+        }
+      }
+      
+      // Save: Ctrl+S
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, handleSave, setNodes, setEdges]);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END ADD 5
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return (
   <div style={{ width: "100%", height: "100vh", fontFamily: "'Syne', sans-serif", overflow: "hidden", position: "relative", display: "flex" }}>
@@ -1528,7 +1461,7 @@ export default function App() {
         ))}
       </div>
 
-              {/* Edge Styling */}
+      {/* Edge Styling */}
       <div className="panel-title" style={{ marginTop: 8 }}>Edge Style</div>
 
       {/* Edge Color */}
@@ -1639,6 +1572,72 @@ export default function App() {
         ))}
       </div>
 
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      {/* ADD 6: Undo/Redo buttons in sidebar */}
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      
+      <div className="panel-title">History</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button
+          className="toolbar-btn"
+          onClick={() => {
+            const prevState = undo();
+            if (prevState) {
+              setNodes(prevState.nodes);
+              setEdges(prevState.edges);
+            }
+          }}
+          disabled={!canUndo}
+          style={{ flex: 1 }}
+        >
+          ↩ Undo
+        </button>
+        <button
+          className="toolbar-btn"
+          onClick={() => {
+            const nextState = redo();
+            if (nextState) {
+              setNodes(nextState.nodes);
+              setEdges(nextState.edges);
+            }
+          }}
+          disabled={!canRedo}
+          style={{ flex: 1 }}
+        >
+          ↪ Redo
+        </button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      {/* END ADD 6 */}
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      {/* ADD 7: Save/Load buttons in sidebar */}
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      
+      <div className="panel-title">Save & Load</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button
+          className="toolbar-btn"
+          onClick={handleSave}
+          style={{ flex: 1 }}
+        >
+          💾 Save
+        </button>
+        <button
+          className="toolbar-btn"
+          onClick={handleLoad}
+          style={{ flex: 1, color: '#4ECDC4' }}
+        >
+          📂 Load
+        </button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      {/* END ADD 7 */}
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+
       {/* Actions */}
       <div className="panel-title">Actions</div>
       <button className="toolbar-btn" onClick={autoArrange} style={{ marginBottom: 8, width: '100%' }}>
@@ -1678,13 +1677,22 @@ export default function App() {
       </ReactFlow>
     </div>
 
-    {/* Hint */}
+    {/* ═══════════════════════════════════════════════════════════════════════════ */}
+    {/* MODIFY 7: Update hint tag with new shortcuts */}
+    {/* ═══════════════════════════════════════════════════════════════════════════ */}
+    
     <div className="hint-tag">
       <div>✏️ Double-click node → edit label</div>
       <div>⚡ Drag from center → connect nodes</div>
       <div>🎯 Click node → select & style</div>
       <div>📏 Drag node corners → resize</div>
+      <div>⌨️ Ctrl+Z → undo | Ctrl+Shift+Z → redo</div>
+      <div>💾 Ctrl+S → save mind map</div>
     </div>
+
+    {/* ═══════════════════════════════════════════════════════════════════════════ */}
+    {/* END MODIFY 7 */}
+    {/* ═══════════════════════════════════════════════════════════════════════════ */}
   </div>
 );
 }
